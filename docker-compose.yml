@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+
+  # Base de données Auth Service
+  auth-db:
+    image: postgres:15-alpine
+    container_name: auth-db
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+
+volumes:
+  auth-db-data:
