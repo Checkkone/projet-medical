@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../database');
+const { publishMessage } = require('../rabbitmq');
 
 // GET /rdv — Liste tous les rendez-vous
 router.get('/rdv', async (req, res) => {
@@ -19,7 +20,6 @@ router.post('/rdv', async (req, res) => {
   try {
     const { patient_id, medecin_id, disponibilite_id, date_rdv, heure_rdv } = req.body;
 
-    // Vérifier que le créneau est disponible
     const dispo = await pool.query(
       'SELECT * FROM disponibilites WHERE id = $1 AND est_reserve = FALSE',
       [disponibilite_id]
@@ -29,18 +29,24 @@ router.post('/rdv', async (req, res) => {
       return res.status(400).json({ erreur: 'Créneau non disponible' });
     }
 
-    // Créer le rendez-vous
     const result = await pool.query(
       `INSERT INTO rendez_vous (patient_id, medecin_id, disponibilite_id, date_rdv, heure_rdv)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [patient_id, medecin_id, disponibilite_id, date_rdv, heure_rdv]
     );
 
-    // Marquer le créneau comme réservé
     await pool.query(
       'UPDATE disponibilites SET est_reserve = TRUE WHERE id = $1',
       [disponibilite_id]
     );
+
+    await publishMessage('rdv.created', {
+      rdv_id: result.rows[0].id,
+      patient_id,
+      medecin_id,
+      date_rdv,
+      heure_rdv
+    });
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -74,7 +80,6 @@ router.delete('/rdv/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Récupérer le RDV pour libérer le créneau
     const rdv = await pool.query(
       'SELECT * FROM rendez_vous WHERE id = $1',
       [id]
@@ -84,14 +89,18 @@ router.delete('/rdv/:id', async (req, res) => {
       return res.status(404).json({ erreur: 'Rendez-vous non trouvé' });
     }
 
-    // Libérer le créneau
     await pool.query(
       'UPDATE disponibilites SET est_reserve = FALSE WHERE id = $1',
       [rdv.rows[0].disponibilite_id]
     );
 
-    // Supprimer le RDV
     await pool.query('DELETE FROM rendez_vous WHERE id = $1', [id]);
+
+    await publishMessage('rdv.cancelled', {
+      rdv_id: id,
+      patient_id: rdv.rows[0].patient_id,
+      medecin_id: rdv.rows[0].medecin_id
+    });
 
     res.json({ message: 'Rendez-vous annulé avec succès' });
   } catch (error) {

@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 const { initDatabase } = require('./database');
 const rdvRoutes = require('./routes/rdv');
+const { connectRabbitMQ } = require('./rabbitmq');
 
 const app = express();
 const PORT = process.env.PORT || 3003;
@@ -27,11 +28,11 @@ app.get('/health', (req, res) => {
 // Démarrer le serveur
 const startServer = async () => {
   await initDatabase();
+  await connectRabbitMQ();
   app.listen(PORT, () => {
     console.log(`✅ RDV Service démarré sur le port ${PORT}`);
   });
 };
-
 startServer();
 
 module.exports = app;
