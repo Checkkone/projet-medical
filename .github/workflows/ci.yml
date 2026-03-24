@@ -1,0 +1,63 @@
+name: CI — Tests Automatiques
+
+on:
+  push:
+    branches: [main, develop, feature/e1-auth, feature/e1-frontend]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+
+  test-auth-service:
+    name: Tests Auth Service
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: auth_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v3
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Installer les dépendances
+        run: cd auth-service && npm install
+
+      - name: Créer la table users
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d auth_db -c "
+          CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            nom VARCHAR(100) NOT NULL,
+            email VARCHAR(150) UNIQUE NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
+            role VARCHAR(20) DEFAULT 'patient',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );"
+
+      - name: Lancer les tests
+        run: cd auth-service && npm test
+        env:
+          PORT: 3001
+          JWT_SECRET: monSecretJWT2024
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: auth_db
+          DB_USER: postgres
+          DB_PASSWORD: postgres
