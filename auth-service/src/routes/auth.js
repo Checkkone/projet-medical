@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
 require('dotenv').config();
+const verifyToken = require('../middleware/verifyToken');
 
 const router = express.Router();
 
@@ -80,4 +81,11 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Route GET /verify-token — Vérifier un token JWT
+router.get('/verify-token', verifyToken, (req, res) => {
+  res.json({
+    message: 'Token valide',
+    user: req.user
+  });
+});
 module.exports = router;
