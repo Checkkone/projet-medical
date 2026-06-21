@@ -96,20 +96,29 @@ const Dashboard = () => {
         </div>
 
         {/* Actions rapides */}
-        <div style={styles.actionsCard}>
-          <h2 style={styles.profilTitre}>Actions Rapides</h2>
-          <div style={styles.boutonsGrille}>
-            <button style={styles.actionBouton}>
-              📅 Prendre un RDV
-            </button>
-            <button style={styles.actionBouton}>
-              📋 Voir mes RDV
-            </button>
-            <button style={styles.actionBouton}>
-              👤 Mon dossier médical
-            </button>
-          </div>
-        </div>
+<div style={styles.actionsCard}>
+  <h2 style={styles.profilTitre}>Actions Rapides</h2>
+  <div style={styles.boutonsGrille}>
+    <button
+      style={styles.actionBouton}
+      onClick={() => navigate('/rendez-vous')}
+    >
+      📅 Prendre un RDV
+    </button>
+    <button
+      style={styles.actionBouton}
+      onClick={() => navigate('/mes-rdv')}
+    >
+      📋 Voir mes RDV
+    </button>
+    <button
+      style={styles.actionBouton}
+      onClick={() => navigate('/profil')}
+    >
+      👤 Mon dossier médical
+    </button>
+  </div>
+</div>
 
       </div>
     </div>
