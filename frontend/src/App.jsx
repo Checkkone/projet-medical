@@ -4,6 +4,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import RendezVous from './pages/RendezVous';
+import MesRendezVous from './pages/MesRendezVous';
+import DossierMedical from './pages/DossierMedical';
 
 const RouteProtegee = ({ children }) => {
   const { user, loading } = useAuth();
@@ -24,6 +26,12 @@ const App = () => {
           } />
           <Route path="/rendez-vous" element={
             <RouteProtegee><RendezVous /></RouteProtegee>
+          } />
+          <Route path="/mes-rendez-vous" element={
+            <RouteProtegee><MesRendezVous /></RouteProtegee>
+          } />
+          <Route path="/dossier-medical" element={
+            <RouteProtegee><DossierMedical /></RouteProtegee>
           } />
           <Route path="/" element={<Navigate to="/login" />} />
         </Routes>

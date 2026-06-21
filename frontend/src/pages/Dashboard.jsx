@@ -95,7 +95,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Actions rapides */}
+{/* Actions rapides */}
 <div style={styles.actionsCard}>
   <h2 style={styles.profilTitre}>Actions Rapides</h2>
   <div style={styles.boutonsGrille}>
@@ -107,16 +107,16 @@ const Dashboard = () => {
     </button>
     <button
       style={styles.actionBouton}
-      onClick={() => navigate('/mes-rdv')}
+      onClick={() => navigate('/mes-rendez-vous')}
     >
       📋 Voir mes RDV
     </button>
     <button
-      style={styles.actionBouton}
-      onClick={() => navigate('/profil')}
-    >
-      👤 Mon dossier médical
-    </button>
+  style={styles.actionBouton}
+  onClick={() => navigate('/dossier-medical')}
+>
+  👤 Mon dossier médical
+</button>
   </div>
 </div>
 
