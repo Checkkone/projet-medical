@@ -1,5 +1,7 @@
 services:
 
+  # ========== BASES DE DONNÉES ==========
+
   # Base de données Auth Service
   auth-db:
     image: postgres:15-alpine
@@ -14,6 +16,51 @@ services:
       - auth-db-data:/var/lib/postgresql/data
     networks:
       - projet-medical-network
+
+  # Base de données RDV Service
+  postgres-rdv:
+    image: postgres:15
+    container_name: bdd_rdv
+    environment:
+      POSTGRES_DB: rdv_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret123
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - projet-medical-network
+
+  # Base de données Patient Service
+  mongodb:
+    image: mongo:6
+    container_name: bdd_patients
+    environment:
+      MONGO_INITDB_DATABASE: patients_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - projet-medical-network
+
+  # Message Broker RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: secret123
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - projet-medical-network
+
+  # ========== SERVICES ==========
 
   # Auth Service
   auth-service:
@@ -31,6 +78,51 @@ services:
       DB_PASSWORD: postgres
     depends_on:
       - auth-db
+    networks:
+      - projet-medical-network
+
+  # Patient Service
+  patient-service:
+    build: ./patient-service
+    container_name: patient-service
+    ports:
+      - "3002:3002"
+    environment:
+      MONGODB_URL: mongodb://mongodb:27017/patients_db
+    depends_on:
+      - mongodb
+    networks:
+      - projet-medical-network
+
+  # RDV Service
+  rdv-service:
+    build: ./rdv-service
+    container_name: rdv-service
+    ports:
+      - "3003:3003"
+    environment:
+      DB_HOST: postgres-rdv
+      DB_PORT: 5432
+      DB_NAME: rdv_db
+      DB_USER: admin
+      DB_PASSWORD: secret123
+      RABBITMQ_URL: amqp://admin:secret123@rabbitmq:5672
+    depends_on:
+      - postgres-rdv
+      - rabbitmq
+    networks:
+      - projet-medical-network
+
+  # Notification Service
+  notification-service:
+    build: ./notification-service
+    container_name: notification-service
+    ports:
+      - "3004:3004"
+    environment:
+      RABBITMQ_URL: amqp://admin:secret123@rabbitmq:5672
+    depends_on:
+      - rabbitmq
     networks:
       - projet-medical-network
 
@@ -63,3 +155,6 @@ networks:
 
 volumes:
   auth-db-data:
+  postgres_data:
+  mongo_data:
+  rabbitmq_data:
