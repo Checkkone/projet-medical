@@ -1,50 +1,76 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { rdvService } from '../services/api';
 
 const RendezVous = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const [disponibilites, setDisponibilites] = useState([]);
+  const [chargement, setChargement] = useState(true);
+  const [erreur, setErreur] = useState('');
+  const [confirmation, setConfirmation] = useState(null);
+
   const [formData, setFormData] = useState({
-    medecin: '',
-    date: '',
-    heure: '',
+    disponibilite_id: '',
     motif: '',
   });
 
-  const [confirmation, setConfirmation] = useState(false);
-  const [erreur, setErreur] = useState('');
+  // Charger les disponibilités depuis le vrai service
+  useEffect(() => {
+    const chargerDisponibilites = async () => {
+      try {
+        const response = await rdvService.getDisponibilites();
+        setDisponibilites(response.data);
+      } catch (error) {
+        setErreur('Impossible de charger les disponibilités');
+      } finally {
+        setChargement(false);
+      }
+    };
+    chargerDisponibilites();
+  }, []);
 
-  const medecins = [
-    { id: 1, nom: 'Dr. Martin', specialite: 'Généraliste' },
-    { id: 2, nom: 'Dr. Dupont', specialite: 'Cardiologue' },
-    { id: 3, nom: 'Dr. Bernard', specialite: 'Dermatologue' },
-    { id: 4, nom: 'Dr. Leblanc', specialite: 'Pédiatre' },
-  ];
-
-  const heures = [
-    '08:00', '08:30', '09:00', '09:30', '10:00',
-    '10:30', '11:00', '11:30', '14:00', '14:30',
-    '15:00', '15:30', '16:00', '16:30', '17:00',
-  ];
-
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.medecin || !formData.date || !formData.heure || !formData.motif) {
+    if (!formData.disponibilite_id || !formData.motif) {
       setErreur('Veuillez remplir tous les champs');
       return;
     }
-    setErreur('');
-    setConfirmation(true);
+
+    const dispo = disponibilites.find(d => d.id === parseInt(formData.disponibilite_id));
+
+    try {
+      await rdvService.create({
+        patient_id: user?.id,
+        medecin_id: dispo.medecin_id,
+        disponibilite_id: parseInt(formData.disponibilite_id),
+        date_rdv: dispo.date_disponible,
+        heure_rdv: dispo.heure_debut,
+      });
+      setConfirmation(dispo);
+    } catch (error) {
+      setErreur('Erreur lors de la création du rendez-vous');
+    }
   };
 
+  if (chargement) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.navbar}>
+          <span style={styles.logo}>🏥 Projet Médical</span>
+        </div>
+        <div style={styles.contenu}>
+          <p style={{ textAlign: 'center', color: '#64748B' }}>
+            Chargement des disponibilités...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (confirmation) {
-    const medecin = medecins.find(m => m.id === parseInt(formData.medecin));
     return (
       <div style={styles.container}>
         <div style={styles.navbar}>
@@ -61,29 +87,32 @@ const RendezVous = () => {
             <div style={styles.confirmDetails}>
               <div style={styles.confirmItem}>
                 <span style={styles.confirmLabel}>Médecin</span>
-                <span style={styles.confirmValeur}>{medecin?.nom} — {medecin?.specialite}</span>
+                <span style={styles.confirmValeur}>Dr. {confirmation.prenom} {confirmation.nom}</span>
+              </div>
+              <div style={styles.confirmItem}>
+                <span style={styles.confirmLabel}>Spécialité</span>
+                <span style={styles.confirmValeur}>{confirmation.specialite}</span>
               </div>
               <div style={styles.confirmItem}>
                 <span style={styles.confirmLabel}>Date</span>
-                <span style={styles.confirmValeur}>{formData.date}</span>
+                <span style={styles.confirmValeur}>
+                  {new Date(confirmation.date_disponible).toLocaleDateString('fr-FR')}
+                </span>
               </div>
               <div style={styles.confirmItem}>
                 <span style={styles.confirmLabel}>Heure</span>
-                <span style={styles.confirmValeur}>{formData.heure}</span>
-              </div>
-              <div style={styles.confirmItem}>
-                <span style={styles.confirmLabel}>Motif</span>
-                <span style={styles.confirmValeur}>{formData.motif}</span>
+                <span style={styles.confirmValeur}>{confirmation.heure_debut}</span>
               </div>
               <div style={styles.confirmItem}>
                 <span style={styles.confirmLabel}>Patient</span>
                 <span style={styles.confirmValeur}>{user?.nom}</span>
               </div>
+              <div style={styles.confirmItem}>
+                <span style={styles.confirmLabel}>Motif</span>
+                <span style={styles.confirmValeur}>{formData.motif}</span>
+              </div>
             </div>
-            <button
-              onClick={() => navigate('/dashboard')}
-              style={styles.boutonDashboard}
-            >
+            <button onClick={() => navigate('/dashboard')} style={styles.boutonDashboard}>
               Retour au Dashboard
             </button>
           </div>
@@ -103,66 +132,35 @@ const RendezVous = () => {
 
       <div style={styles.contenu}>
         <h1 style={styles.titre}>📅 Prendre un Rendez-vous</h1>
-        <p style={styles.sousTitre}>Remplissez le formulaire pour réserver votre créneau</p>
+        <p style={styles.sousTitre}>Choisissez un créneau disponible</p>
 
         <div style={styles.formCard}>
           {erreur && <div style={styles.erreur}>{erreur}</div>}
 
           <form onSubmit={handleSubmit}>
-
             <div style={styles.champ}>
-              <label style={styles.label}>👨‍⚕️ Choisir un médecin</label>
+              <label style={styles.label}>👨‍⚕️ Choisir un créneau disponible</label>
               <select
-                name="medecin"
-                value={formData.medecin}
-                onChange={handleChange}
+                value={formData.disponibilite_id}
+                onChange={(e) => setFormData({ ...formData, disponibilite_id: e.target.value })}
                 style={styles.input}
               >
-                <option value="">-- Sélectionner un médecin --</option>
-                {medecins.map(m => (
-                  <option key={m.id} value={m.id}>
-                    {m.nom} — {m.specialite}
+                <option value="">-- Sélectionner un créneau --</option>
+                {disponibilites.map(d => (
+                  <option key={d.id} value={d.id}>
+                    Dr. {d.prenom} {d.nom} ({d.specialite}) —{' '}
+                    {new Date(d.date_disponible).toLocaleDateString('fr-FR')} à {d.heure_debut}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div style={styles.grille2}>
-              <div style={styles.champ}>
-                <label style={styles.label}>📆 Date</label>
-                <input
-                  type="date"
-                  name="date"
-                  value={formData.date}
-                  onChange={handleChange}
-                  style={styles.input}
-                  min={new Date().toISOString().split('T')[0]}
-                />
-              </div>
-
-              <div style={styles.champ}>
-                <label style={styles.label}>🕐 Heure</label>
-                <select
-                  name="heure"
-                  value={formData.heure}
-                  onChange={handleChange}
-                  style={styles.input}
-                >
-                  <option value="">-- Choisir une heure --</option>
-                  {heures.map(h => (
-                    <option key={h} value={h}>{h}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
             <div style={styles.champ}>
               <label style={styles.label}>📝 Motif de la consultation</label>
               <textarea
-                name="motif"
                 value={formData.motif}
-                onChange={handleChange}
-                style={{...styles.input, height: '100px', resize: 'vertical'}}
+                onChange={(e) => setFormData({ ...formData, motif: e.target.value })}
+                style={{ ...styles.input, height: '100px', resize: 'vertical' }}
                 placeholder="Décrivez brièvement le motif de votre consultation..."
               />
             </div>
@@ -170,7 +168,6 @@ const RendezVous = () => {
             <button type="submit" style={styles.boutonSoumettre}>
               Confirmer le rendez-vous
             </button>
-
           </form>
         </div>
       </div>
@@ -226,7 +223,6 @@ const styles = {
     outline: 'none',
     fontFamily: 'Arial, sans-serif',
   },
-  grille2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' },
   boutonSoumettre: {
     width: '100%',
     padding: '14px',

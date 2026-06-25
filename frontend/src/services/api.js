@@ -1,44 +1,50 @@
 import axios from 'axios';
 
-// URL de base de l'API Gateway
-const API_URL = 'http://localhost:3001';
+// URLs des services
+const AUTH_URL = 'http://localhost:3001';
+const PATIENT_URL = 'http://localhost:3002';
+const RDV_URL = 'http://localhost:3003';
 
-// Créer une instance axios
-const api = axios.create({
-  baseURL: API_URL,
-});
+// Instance axios avec token automatique
+const createApi = (baseURL) => {
+  const instance = axios.create({ baseURL });
+  instance.interceptors.request.use((config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  });
+  return instance;
+};
 
-// Ajouter le token JWT automatiquement à chaque requête
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+const authApi = createApi(AUTH_URL);
+const patientApi = createApi(PATIENT_URL);
+const rdvApi = createApi(RDV_URL);
 
 // Services Auth
 export const authService = {
-  register: (data) => api.post('/api/auth/register', data),
-  login: (data) => api.post('/api/auth/login', data),
-  verifyToken: () => api.get('/api/auth/verify-token'),
+  register: (data) => authApi.post('/api/auth/register', data),
+  login: (data) => authApi.post('/api/auth/login', data),
+  verifyToken: () => authApi.get('/api/auth/verify-token'),
 };
 
 // Services Patients
 export const patientService = {
-  getAll: () => api.get('/api/patients'),
-  getById: (id) => api.get(`/api/patients/${id}`),
-  create: (data) => api.post('/api/patients', data),
-  update: (id, data) => api.put(`/api/patients/${id}`, data),
+  getAll: () => patientApi.get('/patients'),
+  getById: (id) => patientApi.get(`/patients/${id}`),
+  create: (data) => patientApi.post('/patients', data),
+  update: (id, data) => patientApi.put(`/patients/${id}`, data),
+  getDossier: (id) => patientApi.get(`/patients/${id}/dossier`),
 };
 
 // Services RDV
 export const rdvService = {
-  getAll: () => api.get('/api/rdv'),
-  create: (data) => api.post('/api/rdv', data),
-  update: (id, data) => api.put(`/api/rdv/${id}`, data),
-  delete: (id) => api.delete(`/api/rdv/${id}`),
-  getDisponibilites: () => api.get('/api/rdv/disponibilites'),
+  getAll: () => rdvApi.get('/api/rdv'),
+  create: (data) => rdvApi.post('/api/rdv', data),
+  update: (id, data) => rdvApi.put(`/api/rdv/${id}`, data),
+  delete: (id) => rdvApi.delete(`/api/rdv/${id}`),
+  getDisponibilites: () => rdvApi.get('/api/disponibilites'),
 };
 
-export default api; 
+export default authApi;
