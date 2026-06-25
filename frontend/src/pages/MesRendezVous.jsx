@@ -1,42 +1,63 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { rdvService } from '../services/api';
 
 const MesRendezVous = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [rendezVous, setRendezVous] = useState([]);
+  const [chargement, setChargement] = useState(true);
+  const [erreur, setErreur] = useState('');
 
-  // Données de test — seront remplacées par l'API plus tard
-  const [rendezVous, setRendezVous] = useState([
-    {
-      id: 1,
-      medecin: 'Dr. Martin',
-      specialite: 'Généraliste',
-      date: '2026-07-15',
-      heure: '09:00',
-      motif: 'Consultation générale',
-      statut: 'confirmé',
-    },
-    {
-      id: 2,
-      medecin: 'Dr. Dupont',
-      specialite: 'Cardiologue',
-      date: '2026-07-20',
-      heure: '14:30',
-      motif: 'Contrôle cardiaque',
-      statut: 'en attente',
-    },
-  ]);
+  // Charger les vrais RDV depuis le service
+  useEffect(() => {
+    const chargerRdv = async () => {
+      try {
+        const response = await rdvService.getAll();
+        // Filtrer les RDV du patient connecté
+        const mesRdv = response.data.filter(
+  rdv => parseInt(rdv.patient_id) === parseInt(user?.id)
+);
+        setRendezVous(mesRdv);
+      } catch (error) {
+        setErreur('Impossible de charger vos rendez-vous');
+      } finally {
+        setChargement(false);
+      }
+    };
+    chargerRdv();
+  }, [user]);
 
-  const annuler = (id) => {
-    setRendezVous(rendezVous.filter(rdv => rdv.id !== id));
+  const annuler = async (id) => {
+    try {
+      await rdvService.delete(id);
+      setRendezVous(rendezVous.filter(rdv => rdv.id !== id));
+    } catch (error) {
+      setErreur('Erreur lors de l\'annulation');
+    }
   };
 
   const couleurStatut = (statut) => {
-    if (statut === 'confirmé') return { backgroundColor: '#D1FAE5', color: '#0F6E56' };
+    if (statut === 'confirme') return { backgroundColor: '#D1FAE5', color: '#0F6E56' };
     if (statut === 'en attente') return { backgroundColor: '#FEF3C7', color: '#92400E' };
     return { backgroundColor: '#FEE2E2', color: '#A32D2D' };
   };
+
+  if (chargement) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.navbar}>
+          <span style={styles.logo}>🏥 Projet Médical</span>
+        </div>
+        <div style={styles.contenu}>
+          <p style={{ textAlign: 'center', color: '#64748B' }}>
+            Chargement de vos rendez-vous...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
@@ -50,6 +71,8 @@ const MesRendezVous = () => {
       <div style={styles.contenu}>
         <h1 style={styles.titre}>📋 Mes Rendez-vous</h1>
         <p style={styles.sousTitre}>Liste de tous vos rendez-vous médicaux</p>
+
+        {erreur && <div style={styles.erreur}>{erreur}</div>}
 
         {rendezVous.length === 0 ? (
           <div style={styles.vide}>
@@ -67,8 +90,8 @@ const MesRendezVous = () => {
               <div key={rdv.id} style={styles.carte}>
                 <div style={styles.carteHeader}>
                   <div>
-                    <h3 style={styles.medecin}>👨‍⚕️ {rdv.medecin}</h3>
-                    <p style={styles.specialite}>{rdv.specialite}</p>
+                    <h3 style={styles.medecin}>👨‍⚕️ Médecin ID : {rdv.medecin_id}</h3>
+                    <p style={styles.specialite}>Patient ID : {rdv.patient_id}</p>
                   </div>
                   <span style={{...styles.statut, ...couleurStatut(rdv.statut)}}>
                     {rdv.statut}
@@ -78,19 +101,21 @@ const MesRendezVous = () => {
                 <div style={styles.carteBody}>
                   <div style={styles.infoItem}>
                     <span style={styles.infoLabel}>📆 Date</span>
-                    <span style={styles.infoValeur}>{rdv.date}</span>
+                    <span style={styles.infoValeur}>
+                      {new Date(rdv.date_rdv).toLocaleDateString('fr-FR')}
+                    </span>
                   </div>
                   <div style={styles.infoItem}>
                     <span style={styles.infoLabel}>🕐 Heure</span>
-                    <span style={styles.infoValeur}>{rdv.heure}</span>
-                  </div>
-                  <div style={styles.infoItem}>
-                    <span style={styles.infoLabel}>📝 Motif</span>
-                    <span style={styles.infoValeur}>{rdv.motif}</span>
+                    <span style={styles.infoValeur}>{rdv.heure_rdv}</span>
                   </div>
                   <div style={styles.infoItem}>
                     <span style={styles.infoLabel}>👤 Patient</span>
                     <span style={styles.infoValeur}>{user?.nom}</span>
+                  </div>
+                  <div style={styles.infoItem}>
+                    <span style={styles.infoLabel}>📋 Statut</span>
+                    <span style={styles.infoValeur}>{rdv.statut}</span>
                   </div>
                 </div>
 
@@ -140,6 +165,13 @@ const styles = {
   contenu: { padding: '32px', maxWidth: '800px', margin: '0 auto' },
   titre: { color: '#1B3A6B', marginBottom: '8px' },
   sousTitre: { color: '#64748B', marginBottom: '32px' },
+  erreur: {
+    backgroundColor: '#FEE2E2',
+    color: '#A32D2D',
+    padding: '12px',
+    borderRadius: '8px',
+    marginBottom: '16px',
+  },
   liste: { display: 'flex', flexDirection: 'column', gap: '20px' },
   carte: {
     backgroundColor: 'white',
