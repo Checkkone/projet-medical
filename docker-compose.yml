@@ -88,7 +88,8 @@ services:
     ports:
       - "3002:3002"
     environment:
-      MONGODB_URL: mongodb://mongodb:27017/patients_db
+      MONGO_URL: mongodb://bdd_patients:27017
+      DATABASE_NAME: patients_db
     depends_on:
       - mongodb
     networks:

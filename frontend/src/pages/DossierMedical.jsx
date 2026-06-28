@@ -1,19 +1,47 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { patientService } from '../services/api';
 
 const DossierMedical = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [patient, setPatient] = useState(null);
+  const [chargement, setChargement] = useState(true);
+  const [erreur, setErreur] = useState('');
 
-  const [dossier] = useState({
-    groupeSanguin: 'A+',
-    taille: '175 cm',
-    poids: '70 kg',
-    allergies: ['Pénicilline', 'Arachides'],
-    antecedents: ['Hypertension (2020)', 'Appendicite (2018)'],
-    medicaments: ['Amlodipine 5mg', 'Aspirine 100mg'],
-  });
+  useEffect(() => {
+    const chargerDossier = async () => {
+      try {
+        // Chercher le patient par userId
+        const response = await patientService.getAll();
+        const monProfil = response.data.find(
+          p => p.userId === String(user?.id)
+        );
+        setPatient(monProfil || null);
+      } catch (error) {
+        setErreur('Impossible de charger votre dossier médical');
+      } finally {
+        setChargement(false);
+      }
+    };
+    chargerDossier();
+  }, [user]);
+
+  if (chargement) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.navbar}>
+          <span style={styles.logo}>🏥 Projet Médical</span>
+        </div>
+        <div style={styles.contenu}>
+          <p style={{ textAlign: 'center', color: '#64748B' }}>
+            Chargement de votre dossier...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
@@ -28,65 +56,63 @@ const DossierMedical = () => {
         <h1 style={styles.titre}>👤 Mon Dossier Médical</h1>
         <p style={styles.sousTitre}>Vos informations médicales personnelles</p>
 
-        {/* Infos générales */}
-        <div style={styles.carte}>
-          <h2 style={styles.carteTitre}>📋 Informations Générales</h2>
-          <div style={styles.grille}>
-            <div style={styles.item}>
-              <span style={styles.label}>Nom complet</span>
-              <span style={styles.valeur}>{user?.nom}</span>
-            </div>
-            <div style={styles.item}>
-              <span style={styles.label}>Email</span>
-              <span style={styles.valeur}>{user?.email}</span>
-            </div>
-            <div style={styles.item}>
-              <span style={styles.label}>Groupe sanguin</span>
-              <span style={{...styles.valeur, color: '#A32D2D', fontWeight: 'bold'}}>
-                {dossier.groupeSanguin}
-              </span>
-            </div>
-            <div style={styles.item}>
-              <span style={styles.label}>Taille</span>
-              <span style={styles.valeur}>{dossier.taille}</span>
-            </div>
-            <div style={styles.item}>
-              <span style={styles.label}>Poids</span>
-              <span style={styles.valeur}>{dossier.poids}</span>
-            </div>
-          </div>
-        </div>
+        {erreur && <div style={styles.erreur}>{erreur}</div>}
 
-        {/* Allergies */}
-        <div style={styles.carte}>
-          <h2 style={styles.carteTitre}>⚠️ Allergies</h2>
-          <div style={styles.tagContainer}>
-            {dossier.allergies.map((a, i) => (
-              <span key={i} style={styles.tagRouge}>{a}</span>
-            ))}
+        {!patient ? (
+          <div style={styles.vide}>
+            <p style={styles.videTexte}>📭 Aucun dossier médical trouvé</p>
+            <p style={styles.videInfo}>Votre dossier sera créé automatiquement</p>
           </div>
-        </div>
+        ) : (
+          <>
+            {/* Infos générales */}
+            <div style={styles.carte}>
+              <h2 style={styles.carteTitre}>📋 Informations Générales</h2>
+              <div style={styles.grille}>
+                <div style={styles.item}>
+                  <span style={styles.label}>Nom complet</span>
+                  <span style={styles.valeur}>{patient.prenom} {patient.nom}</span>
+                </div>
+                <div style={styles.item}>
+                  <span style={styles.label}>Date de naissance</span>
+                  <span style={styles.valeur}>{patient.dateNaissance}</span>
+                </div>
+                <div style={styles.item}>
+                  <span style={styles.label}>Téléphone</span>
+                  <span style={styles.valeur}>{patient.telephone}</span>
+                </div>
+                <div style={styles.item}>
+                  <span style={styles.label}>Adresse</span>
+                  <span style={styles.valeur}>{patient.adresse}</span>
+                </div>
+                <div style={styles.item}>
+                  <span style={styles.label}>Email</span>
+                  <span style={styles.valeur}>{user?.email}</span>
+                </div>
+                <div style={styles.item}>
+                  <span style={styles.label}>Statut</span>
+                  <span style={{...styles.valeur, color: '#0F6E56', fontWeight: 'bold'}}>
+                    ✅ Dossier actif
+                  </span>
+                </div>
+              </div>
+            </div>
 
-        {/* Antécédents */}
-        <div style={styles.carte}>
-          <h2 style={styles.carteTitre}>🏥 Antécédents Médicaux</h2>
-          <div style={styles.tagContainer}>
-            {dossier.antecedents.map((a, i) => (
-              <span key={i} style={styles.tagBleu}>{a}</span>
-            ))}
-          </div>
-        </div>
-
-        {/* Médicaments */}
-        <div style={styles.carte}>
-          <h2 style={styles.carteTitre}>💊 Médicaments en cours</h2>
-          <div style={styles.tagContainer}>
-            {dossier.medicaments.map((m, i) => (
-              <span key={i} style={styles.tagVert}>{m}</span>
-            ))}
-          </div>
-        </div>
-
+            {/* Historique médical */}
+            <div style={styles.carte}>
+              <h2 style={styles.carteTitre}>🏥 Historique Médical</h2>
+              {patient.historique && patient.historique.length > 0 ? (
+                <div style={styles.tagContainer}>
+                  {patient.historique.map((h, i) => (
+                    <span key={i} style={styles.tagBleu}>{h}</span>
+                  ))}
+                </div>
+              ) : (
+                <p style={styles.videTexte}>Aucun historique médical enregistré</p>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -114,6 +140,13 @@ const styles = {
   contenu: { padding: '32px', maxWidth: '800px', margin: '0 auto' },
   titre: { color: '#1B3A6B', marginBottom: '8px' },
   sousTitre: { color: '#64748B', marginBottom: '32px' },
+  erreur: {
+    backgroundColor: '#FEE2E2',
+    color: '#A32D2D',
+    padding: '12px',
+    borderRadius: '8px',
+    marginBottom: '16px',
+  },
   carte: {
     backgroundColor: 'white',
     padding: '24px',
@@ -134,14 +167,6 @@ const styles = {
   label: { fontSize: '12px', color: '#94A3B8', textTransform: 'uppercase' },
   valeur: { fontSize: '15px', color: '#1E293B', fontWeight: '500' },
   tagContainer: { display: 'flex', flexWrap: 'wrap', gap: '10px' },
-  tagRouge: {
-    padding: '8px 16px',
-    backgroundColor: '#FEE2E2',
-    color: '#A32D2D',
-    borderRadius: '20px',
-    fontSize: '14px',
-    fontWeight: '500',
-  },
   tagBleu: {
     padding: '8px 16px',
     backgroundColor: '#DBEAFE',
@@ -150,14 +175,14 @@ const styles = {
     fontSize: '14px',
     fontWeight: '500',
   },
-  tagVert: {
-    padding: '8px 16px',
-    backgroundColor: '#D1FAE5',
-    color: '#0F6E56',
-    borderRadius: '20px',
-    fontSize: '14px',
-    fontWeight: '500',
+  vide: {
+    backgroundColor: 'white',
+    padding: '40px',
+    borderRadius: '12px',
+    textAlign: 'center',
   },
+  videTexte: { color: '#94A3B8', fontSize: '16px', marginBottom: '8px' },
+  videInfo: { color: '#CBD5E1', fontSize: '14px' },
 };
 
 export default DossierMedical;
