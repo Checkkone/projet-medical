@@ -1,19 +1,48 @@
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { rdvService, patientService } from '../services/api';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [heure, setHeure] = useState('');
+  const [nbRdv, setNbRdv] = useState(0);
+  const [hasDossier, setHasDossier] = useState(false);
+  const [chargement, setChargement] = useState(true);
 
-  // Afficher un message selon l'heure
   useEffect(() => {
     const h = new Date().getHours();
     if (h < 12) setHeure('Bonjour');
     else if (h < 18) setHeure('Bon après-midi');
     else setHeure('Bonsoir');
   }, []);
+
+  // Charger les vraies données
+  useEffect(() => {
+    const chargerDonnees = async () => {
+      try {
+        // Charger les RDV
+        const rdvResponse = await rdvService.getAll();
+        const mesRdv = rdvResponse.data.filter(
+          rdv => parseInt(rdv.patient_id) === parseInt(user?.id)
+        );
+        setNbRdv(mesRdv.length);
+
+        // Vérifier si le patient a un dossier
+        const patientResponse = await patientService.getAll();
+        const monProfil = patientResponse.data.find(
+          p => p.userId === String(user?.id)
+        );
+        setHasDossier(!!monProfil);
+      } catch (error) {
+        console.error('Erreur chargement dashboard:', error);
+      } finally {
+        setChargement(false);
+      }
+    };
+    chargerDonnees();
+  }, [user]);
 
   const handleLogout = () => {
     logout();
@@ -52,15 +81,21 @@ const Dashboard = () => {
           <div style={{...styles.carte, borderTop: '4px solid #1B3A6B'}}>
             <div style={styles.carteIcone}>📅</div>
             <h3 style={styles.carteTitre}>Rendez-vous</h3>
-            <p style={styles.carteNombre}>0</p>
-            <p style={styles.carteTexte}>À venir</p>
+            <p style={styles.carteNombre}>
+              {chargement ? '...' : nbRdv}
+            </p>
+            <p style={styles.carteTexte}>Total de vos RDV</p>
           </div>
 
           <div style={{...styles.carte, borderTop: '4px solid #0F6E56'}}>
             <div style={styles.carteIcone}>👨‍⚕️</div>
-            <h3 style={styles.carteTitre}>Médecins</h3>
-            <p style={styles.carteNombre}>0</p>
-            <p style={styles.carteTexte}>Disponibles</p>
+            <h3 style={styles.carteTitre}>Dossier Médical</h3>
+            <p style={styles.carteNombre}>
+              {chargement ? '...' : hasDossier ? '✅' : '❌'}
+            </p>
+            <p style={styles.carteTexte}>
+              {hasDossier ? 'Dossier actif' : 'Pas encore créé'}
+            </p>
           </div>
 
           <div style={{...styles.carte, borderTop: '4px solid #F59E0B'}}>
@@ -90,35 +125,37 @@ const Dashboard = () => {
             </div>
             <div style={styles.profilItem}>
               <span style={styles.profilLabel}>Statut</span>
-              <span style={{...styles.profilValeur, color: '#0F6E56', fontWeight: 'bold'}}>✅ Connecté</span>
+              <span style={{...styles.profilValeur, color: '#0F6E56', fontWeight: 'bold'}}>
+                ✅ Connecté
+              </span>
             </div>
           </div>
         </div>
 
-{/* Actions rapides */}
-<div style={styles.actionsCard}>
-  <h2 style={styles.profilTitre}>Actions Rapides</h2>
-  <div style={styles.boutonsGrille}>
-    <button
-      style={styles.actionBouton}
-      onClick={() => navigate('/rendez-vous')}
-    >
-      📅 Prendre un RDV
-    </button>
-    <button
-      style={styles.actionBouton}
-      onClick={() => navigate('/mes-rendez-vous')}
-    >
-      📋 Voir mes RDV
-    </button>
-    <button
-  style={styles.actionBouton}
-  onClick={() => navigate('/dossier-medical')}
->
-  👤 Mon dossier médical
-</button>
-  </div>
-</div>
+        {/* Actions rapides */}
+        <div style={styles.actionsCard}>
+          <h2 style={styles.profilTitre}>Actions Rapides</h2>
+          <div style={styles.boutonsGrille}>
+            <button
+              style={styles.actionBouton}
+              onClick={() => navigate('/rendez-vous')}
+            >
+              📅 Prendre un RDV
+            </button>
+            <button
+              style={styles.actionBouton}
+              onClick={() => navigate('/mes-rendez-vous')}
+            >
+              📋 Voir mes RDV
+            </button>
+            <button
+              style={styles.actionBouton}
+              onClick={() => navigate('/dossier-medical')}
+            >
+              👤 Mon dossier médical
+            </button>
+          </div>
+        </div>
 
       </div>
     </div>
@@ -224,7 +261,6 @@ const styles = {
     fontSize: '14px',
     color: '#1B3A6B',
     fontWeight: '500',
-    transition: 'all 0.2s',
   },
 };
 
