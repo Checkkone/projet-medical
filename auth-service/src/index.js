@@ -1,8 +1,9 @@
- const express = require('express');
+const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
+const { initDatabase } = require('./config/database');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -20,6 +21,11 @@ app.get('/health', (req, res) => {
 });
 
 // Démarrer le serveur
-app.listen(PORT, () => {
-  console.log(`Auth Service démarré sur le port ${PORT}`);
-});
+const startServer = async () => {
+  await initDatabase();
+  app.listen(PORT, () => {
+    console.log(`✅ Auth Service démarré sur le port ${PORT}`);
+  });
+};
+
+startServer();
