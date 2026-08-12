@@ -123,5 +123,35 @@ router.get('/disponibilites', async (req, res) => {
     res.status(500).json({ erreur: error.message });
   }
 });
+// POST /disponibilites — Créer un créneau disponible
+router.post('/disponibilites', async (req, res) => {
+  try {
+    const { medecin_id, date_disponible, heure_debut, heure_fin } = req.body;
+
+    // Vérifier si le médecin existe, sinon le créer
+    let medecin = await pool.query(
+      'SELECT * FROM medecins WHERE id = $1',
+      [medecin_id]
+    );
+
+    if (medecin.rows.length === 0) {
+      medecin = await pool.query(
+        `INSERT INTO medecins (id, nom, prenom, specialite)
+         VALUES ($1, $2, $3, $4) RETURNING *`,
+        [medecin_id, 'Dr', 'Médecin', 'Généraliste']
+      );
+    }
+
+    const result = await pool.query(
+      `INSERT INTO disponibilites (medecin_id, date_disponible, heure_debut, heure_fin, est_reserve)
+       VALUES ($1, $2, $3, $4, FALSE) RETURNING *`,
+      [medecin_id, date_disponible, heure_debut, heure_fin]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ erreur: error.message });
+  }
+});
 
 module.exports = router;
